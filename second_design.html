@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI AR Design Studio</title>
+    <style>
+        :root {
+            --bg-color: #1a1a2e;
+            --text-color: #e0e0ff;
+            --primary-color: #00d4ff;
+            --secondary-color: #ff6f00;
+            --panel-bg: rgba(20, 20, 40, 0.85);
+            --glow: 0 0 10px rgba(0, 212, 255, 0.5);
+            --wireframe: #00d4ff;
+        }
+
+        body {
+            font-family: 'Exo 2', sans-serif;
+            background: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        h1 {
+            font-size: 2.5em;
+            color: var(--primary-color);
+            text-shadow: var(--glow);
+            margin-bottom: 20px;
+            text-align: center;
+            animation: glitch 2s infinite;
+        }
+
+        #app {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        #toolbar {
+            background: var(--panel-bg);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid var(--primary-color);
+            box-shadow: var(--glow);
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+            z-index: 10;
+        }
+
+        #scene {
+            width: 100%;
+            height: 500px;
+            border: 1px solid var(--primary-color);
+            border-radius: 8px;
+            box-shadow: var(--glow);
+            position: relative;
+        }
+
+        button, select, input[type="text"], input[type="range"] {
+            background: var(--panel-bg);
+            color: var(--text-color);
+            border: 1px solid var(--primary-color);
+            padding: 10px 15px;
+            border-radius: 5px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: var(--glow);
+        }
+
+        button:hover, select:hover, input[type="text"]:hover, input[type="range"]:hover {
+            background: var(--primary-color);
+            color: var(--bg-color);
+            transform: scale(1.05);
+            box-shadow: 0 0 15px var(--primary-color);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        #themeToggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: var(--panel-bg);
+            border: 1px solid var(--secondary-color);
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            box-shadow: 0 0 5px var(--secondary-color);
+        }
+
+        #themeToggle:hover {
+            background: var(--secondary-color);
+            color: var(--bg-color);
+        }
+
+        #toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--panel-bg);
+            color: var(--text-color);
+            padding: 10px 20px;
+            border-radius: 5px;
+            border: 1px solid var(--primary-color);
+            box-shadow: var(--glow);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            font-size: 14px;
+        }
+
+        #toast.show {
+            opacity: 1;
+        }
+
+        .tooltip {
+            position: relative;
+        }
+
+        .tooltip::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--panel-bg);
+            color: var(--text-color);
+            padding: 5px 10px;
+            border-radius: 5px;
+            border: 1px solid var(--primary-color);
+            box-shadow: var(--glow);
+            font-size: 12px;
+            white-space: nowrap;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+        }
+
+        .tooltip:hover::after {
+            opacity: 1;
+        }
+
+        @keyframes glitch {
+            0% { transform: translate(0); }
+            20% { transform: translate(-2px, 2px); }
+            40% { transform: translate(2px, -2px); }
+            60% { transform: translate(-2px, 2px); }
+            80% { transform: translate(2px, -2px); }
+            100% { transform: translate(0); }
+        }
+
+        @media (max-width: 850px) {
+            #app {
+                padding: 0 10px;
+            }
+            #scene {
+                height: 300px;
+            }
+            #toolbar {
+                flex-direction: column;
+                align-items: center;
+            }
+        }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body>
+    <div id="root"></div>
+    <script type="text/babel" data-presets="es2015,react">
+        const { useState, useEffect, useRef } = React;
+
+        const App = () => {
+            const [sessionId, setSessionId] = useState('');
+            const [holograms, setHolograms] = useState([]);
+            const [selectedHologram, setSelectedHologram] = useState(null);
+            const [aiPrompt, setAiPrompt] = useState('');
+            const [tool, setTool] = useState('move');
+            const sceneRef = useRef(null);
+            const rendererRef = useRef(null);
+            const cameraRef = useRef(null);
+            const controlsRef = useRef(null);
+            const socket = useRef(null);
+            const raycaster = useRef(new THREE.Raycaster());
+            const mouse = useRef(new THREE.Vector2());
+
+            useEffect(() => {
+                // Initialize Three.js
+                const scene = new THREE.Scene();
+                sceneRef.current = scene;
+                const camera = new THREE.PerspectiveCamera(75, window.innerWidth / 500, 0.1, 1000);
+                camera.position.set(0, 5, 10);
+                cameraRef.current = camera;
+                const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+                renderer.setSize(window.innerWidth, 500);
+                rendererRef.current = renderer;
+                document.getElementById('scene').appendChild(renderer.domElement);
+
+                // Add grid and lighting
+                const grid = new THREE.Mesh(
+                    new THREE.PlaneGeometry(50, 50, 50, 50),
+                    new THREE.MeshBasicMaterial({ color: 0x333333, wireframe: true, transparent: true, opacity: 0.5 })
+                );
+                grid.rotation.x = -Math.PI / 2;
+                scene.add(grid);
+                scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+                const dirLight = new THREE.DirectionalLight(0xffffff, 0.5);
+                dirLight.position.set(5, 5, 5);
+                scene.add(dirLight);
+
+                // Orbit controls
+                const controls = new THREE.OrbitControls(camera, renderer.domElement);
+                controls.enableDamping = true;
+                controls.dampingFactor = 0.05;
+                controlsRef.current = controls;
+
+                // Handle clicks
+                renderer.domElement.addEventListener('click', (e) => {
+                    mouse.current.x = (e.clientX / window.innerWidth) * 2 - 1;
+                    mouse.current.y = -(e.clientY / 500) * 2 + 1;
+                    raycaster.current.setFromCamera(mouse.current, camera);
+                    const intersects = raycaster.current.intersectObjects(scene.children);
+                    if (intersects.length > 0 && intersects[0].object !== grid) {
+                        setSelectedHologram(intersects[0].object.userData.id);
+                    } else {
+                        setSelectedHologram(null);
+                    }
+                });
+
+                // Socket.IO
+                socket.current = io('http://localhost:3000');
+                socket.current.on('connect', () => {
+                    const newSessionId = Math.random().toString(36).substring(2, 10);
+                    setSessionId(newSessionId);
+                    socket.current.emit('join', newSessionId);
+                });
+                socket.current.on('updateHologram', (holo) => {
+                    setHolograms((prev) => {
+                        const newHolograms = [...prev];
+                        const index = newHolograms.findIndex(h => h.id === holo.id);
+                        if (index >= 0) newHolograms[index] = holo;
+                        else newHolograms.push(holo);
+                        updateScene(newHolograms);
+                        return newHolograms;
+                    });
+                });
+
+                // Animation loop
+                const animate = () => {
+                    requestAnimationFrame(animate);
+                    controls.update();
+                    scene.children.forEach(child => {
+                        if (child.userData.animation === 'pulse') {
+                            child.scale.set(
+                                1 + 0.1 * Math.sin(Date.now() * 0.002),
+                                1 + 0.1 * Math.sin(Date.now() * 0.002),
+                                1 + 0.1 * Math.sin(Date.now() * 0.002)
+                            );
+                        } else if (child.userData.animation === 'spin') {
+                            child.rotation.y += 0.01;
+                        }
+                    });
+                    renderer.render(scene, camera);
+                };
+                animate();
+
+                // Resize handler
+                const onResize = () => {
+                    camera.aspect = window.innerWidth / 500;
+                    camera.updateProjectionMatrix();
+                    renderer.setSize(window.innerWidth, 500);
+                };
+                window.addEventListener('resize', onResize);
+
+                // Cleanup
+                return () => {
+                    window.removeEventListener('resize', onResize);
+                    const sceneElement = document.getElementById('scene');
+                    if (sceneElement && renderer.domElement) {
+                        sceneElement.removeChild(renderer.domElement);
+                    }
+                };
+            }, []); // Empty dependency array to run once
+
+            const updateScene = (holograms) => {
+                const scene = sceneRef.current;
+                scene.children = scene.children.filter(c => c === scene.children[0] || c.type === 'Light');
+                holograms.forEach(holo => {
+                    let geometry;
+                    switch (holo.type) {
+                        case 'cube': geometry = new THREE.BoxGeometry(1, 1, 1); break;
+                        case 'sphere': geometry = new THREE.SphereGeometry(0.5, 32, 32); break;
+                        case 'sign': geometry = new THREE.PlaneGeometry(1, 0.5); break;
+                    }
+                    const material = new THREE.MeshStandardMaterial({
+                        color: holo.color,
+                        transparent: true,
+                        opacity: holo.opacity,
+                        emissive: holo.color,
+                        emissiveIntensity: 0.5
+                    });
+                    const mesh = new THREE.Mesh(geometry, material);
+                    mesh.position.set(holo.position.x, holo.position.y, holo.position.z);
+                    mesh.rotation.set(holo.rotation.x, holo.rotation.y, holo.rotation.z);
+                    mesh.scale.set(holo.scale.x, holo.scale.y, holo.scale.z);
+                    mesh.userData = { id: holo.id, animation: holo.animation };
+                    scene.add(mesh);
+                });
+            };
+
+            const showToast = (message) => {
+                const toast = document.getElementById('toast');
+                toast.textContent = message;
+                toast.classList.add('show');
+                setTimeout(() => toast.classList.remove('show'), 3000);
+            };
+
+            const toggleTheme = () => {
+                showToast('Dark theme active');
+            };
+
+            const generateAIHologram = () => {
+                if (!aiPrompt) return;
+                const type = aiPrompt.includes('sign') ? 'sign' : aiPrompt.includes('gadget') ? 'cube' : 'sphere';
+                const holo = {
+                    id: Date.now(),
+                    type,
+                    position: { x: 0, y: 1, z: 0 },
+                    rotation: { x: 0, y: 0, z: 0 },
+                    scale: { x: 1, y: 1, z: 1 },
+                    color: Math.random() * 0xffffff,
+                    opacity: 0.7,
+                    animation: 'none'
+                };
+                setHolograms((prev) => [...prev, holo]);
+                socket.current.emit('updateHologram', holo);
+                showToast(`AI-generated ${aiPrompt}`);
+                setAiPrompt('');
+            };
+
+            const manipulateHologram = (property, value) => {
+                if (!selectedHologram) return;
+                const holo = holograms.find(h => h.id === selectedHologram);
+                if (!holo) return;
+                const updatedHolo = { ...holo };
+                if (tool === 'move') updatedHolo.position[property] = value;
+                else if (tool === 'rotate') updatedHolo.rotation[property] = value;
+                else if (tool === 'scale') updatedHolo.scale[property] = value;
+                else if (tool === 'opacity') updatedHolo.opacity = value;
+                setHolograms((prev) => prev.map(h => h.id === selectedHologram ? updatedHolo : h));
+                socket.current.emit('updateHologram', updatedHolo);
+                updateScene(holograms);
+            };
+
+            const applyAnimation = (animation) => {
+                if (!selectedHologram) return;
+                const holo = holograms.find(h => h.id === selectedHologram);
+                if (!holo) return;
+                const updatedHolo = { ...holo, animation };
+                setHolograms((prev) => prev.map(h => h.id === selectedHologram ? updatedHolo : h));
+                socket.current.emit('updateHologram', updatedHolo);
+                showToast(`Animation ${animation} applied`);
+            };
+
+            const exportScene = () => {
+                const exporter = new THREE.GLTFExporter();
+                exporter.parse(sceneRef.current, (gltf) => {
+                    const output = JSON.stringify(gltf, null, 2);
+                    const blob = new Blob([output], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'ar_scene.gltf';
+                    a.click();
+                    URL.revokeObjectURL(url);
+                    showToast('Scene exported');
+                });
+            };
+
+            return (
+                <div id="app">
+                    <button id="themeToggle" onClick={toggleTheme}>Dark Theme</button>
+                    <h1>AI AR Design Studio</h1>
+                    <div id="toolbar">
+                        <button className="tooltip" data-tooltip="Join or share session" disabled>Session: {sessionId}</button>
+                        <input
+                            type="text"
+                            value={aiPrompt}
+                            onChange={(e) => setAiPrompt(e.target.value)}
+                            placeholder="Enter AI prompt (e.g., sign, gadget)"
+                            className="tooltip"
+                            data-tooltip="Generate AI hologram"
+                        />
+                        <button className="tooltip" data-tooltip="Generate AI hologram" onClick={generateAIHologram}>Generate</button>
+                        <select
+                            value={tool}
+                            onChange={(e) => setTool(e.target.value)}
+                            className="tooltip"
+                            data-tooltip="Select editing tool"
+                        >
+                            <option value="move">Move</option>
+                            <option value="rotate">Rotate</option>
+                            <option value="scale">Scale</option>
+                            <option value="opacity">Opacity</option>
+                        </select>
+                        <input
+                            type="range"
+                            min={tool === 'opacity' ? 0 : -5}
+                            max={tool === 'opacity' ? 1 : 5}
+                            step={tool === 'opacity' ? 0.1 : 0.1}
+                            onChange={(e) => manipulateHologram('x', parseFloat(e.target.value))}
+                            className="tooltip"
+                            data-tooltip="Adjust X axis or opacity"
+                        />
+                        <input
+                            type="range"
+                            min={tool === 'opacity' ? 0 : -5}
+                            max={tool === 'opacity' ? 1 : 5}
+                            step={tool === 'opacity' ? 0.1 : 0.1}
+                            onChange={(e) => manipulateHologram('y', parseFloat(e.target.value))}
+                            className="tooltip"
+                            data-tooltip="Adjust Y axis"
+                        />
+                        <input
+                            type="range"
+                            min={tool === 'opacity' ? 0 : -5}
+                            max={tool === 'opacity' ? 1 : 5}
+                            step={tool === 'opacity' ? 0.1 : 0.1}
+                            onChange={(e) => manipulateHologram('z', parseFloat(e.target.value))}
+                            className="tooltip"
+                            data-tooltip="Adjust Z axis"
+                        />
+                        <button className="tooltip" data-tooltip="Apply pulse animation" onClick={() => applyAnimation('pulse')}>Pulse</button>
+                        <button className="tooltip" data-tooltip="Apply spin animation" onClick={() => applyAnimation('spin')}>Spin</button>
+                        <button className="tooltip" data-tooltip="Export as GLTF" onClick={exportScene}>Export</button>
+                    </div>
+                    <div id="scene"></div>
+                    <div id="toast"></div>
+                </div>
+            );
+        };
+
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html>
