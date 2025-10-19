@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Music Production Suite</title>
+    <style>
+        /* Base Styles */
+        body {
+            font-family: 'Press Start 2P', cursive;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            transition: background 0.5s ease;
+        }
+
+        h1 {
+            font-size: 2em;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        #app {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        #toolbar {
+            padding: 15px;
+            border-radius: 10px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        #tracks {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .track {
+            padding: 10px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .track canvas {
+            flex: 1;
+            height: 100px;
+            border-radius: 5px;
+        }
+
+        #equalizer {
+            width: 100%;
+            height: 100px;
+            border-radius: 10px;
+        }
+
+        button, select, input[type="range"], input[type="text"], input[type="file"] {
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: 'Press Start 2P', cursive;
+        }
+
+        button:hover, select:hover, input[type="range"]:hover, input[type="text"]:hover {
+            transform: scale(1.1);
+        }
+
+        button:disabled, input:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        #themeSelector {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 8px 15px;
+            border-radius: 8px;
+        }
+
+        #toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 10px 20px;
+            border-radius: 8px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            font-size: 14px;
+        }
+
+        #toast.show {
+            opacity: 1;
+        }
+
+        .tooltip {
+            position: relative;
+        }
+
+        .tooltip::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            white-space: nowrap;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+        }
+
+        .tooltip:hover::after {
+            opacity: 1;
+        }
+
+        /* Retro Arcade Theme */
+        body.retro-arcade {
+            background: linear-gradient(135deg, #ff0000, #0000ff);
+            color: #ffffff;
+        }
+
+        .retro-arcade h1 {
+            color: #ffffff;
+            text-shadow: 0 0 5px #ff00ff, 0 0 10px #00ffff;
+            animation: flicker 1.5s infinite;
+        }
+
+        .retro-arcade #toolbar, .retro-arcade .track, .retro-arcade #equalizer {
+            background: rgba(0, 0, 0, 0.7);
+            border: 2px solid #ff00ff;
+            box-shadow: 0 0 10px #00ffff;
+        }
+
+        .retro-arcade button, .retro-arcade select, .retro-arcade input {
+            background: #ff00ff;
+            color: #ffffff;
+            border: 2px solid #00ffff;
+        }
+
+        .retro-arcade .track canvas {
+            border: 2px solid #00ffff;
+        }
+
+        .retro-arcade #toast, .retro-arcade .tooltip::after {
+            background: rgba(0, 0, 0, 0.7);
+            border: 2px solid #ff00ff;
+            color: #ffffff;
+        }
+
+        @keyframes flicker {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.8; }
+        }
+
+        /* Tropical Sunset Theme */
+        body.tropical-sunset {
+            background: linear-gradient(135deg, #ff6f61, #ffb347);
+            color: #1a1a3d;
+        }
+
+        .tropical-sunset h1 {
+            color: #ffffff;
+            text-shadow: 0 0 5px #ff6f61;
+            animation: wave 2s infinite;
+        }
+
+        .tropical-sunset #toolbar, .tropical-sunset .track, .tropical-sunset #equalizer {
+            background: rgba(255, 255, 255, 0.3);
+            border: 2px solid #ffb347;
+            box-shadow: 0 0 10px #ff6f61;
+        }
+
+        .tropical-sunset button, .tropical-sunset select, .tropical-sunset input {
+            background: #ff6f61;
+            color: #ffffff;
+            border: 2px solid #ffb347;
+        }
+
+        .tropical-sunset .track canvas {
+            border: 2px solid #ffb347;
+        }
+
+        .tropical-sunset #toast, .tropical-sunset .tooltip::after {
+            background: rgba(255, 255, 255, 0.3);
+            border: 2px solid #ff6f61;
+            color: #1a1a3d;
+        }
+
+        @keyframes wave {
+            0% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+            100% { transform: translateY(0); }
+        }
+
+        /* Cosmic Disco Theme */
+        body.cosmic-disco {
+            background: linear-gradient(135deg, #6b48ff, #00ff9f);
+            color: #ffffff;
+            animation: starry 5s infinite;
+        }
+
+        .cosmic-disco h1 {
+            color: #ffffff;
+            text-shadow: 0 0 5px #6b48ff;
+            animation: pulse 2s infinite;
+        }
+
+        .cosmic-disco #toolbar, .cosmic-disco .track, .cosmic-disco #equalizer {
+            background: rgba(0, 0, 0, 0.5);
+            border: 2px solid #00ff9f;
+            box-shadow: 0 0 10px #6b48ff;
+        }
+
+        .cosmic-disco button, .cosmic-disco select, .cosmic-disco input {
+            background: #6b48ff;
+            color: #ffffff;
+            border: 2px solid #00ff9f;
+        }
+
+        .cosmic-disco .track canvas {
+            border: 2px solid #00ff9f;
+        }
+
+        .cosmic-disco #toast, .cosmic-disco .tooltip::after {
+            background: rgba(0, 0, 0, 0.5);
+            border: 2px solid #00ff9f;
+            color: #ffffff;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        @keyframes starry {
+            0% { background-position: 0 0; }
+            100% { background-position: 100px 100px; }
+        }
+
+        /* Candy Pop Theme */
+        body.candy-pop {
+            background: linear-gradient(135deg, #ff69b4, #00f7ff);
+            color: #1a1a3d;
+        }
+
+        .candy-pop h1 {
+            color: #ffffff;
+            text-shadow: 0 0 5px #ff69b4;
+            animation: bubble 1.5s infinite;
+        }
+
+        .candy-pop #toolbar, .candy-pop .track, .candy-pop #equalizer {
+            background: rgba(255, 255, 255, 0.4);
+            border: 2px solid #00f7ff;
+            box-shadow: 0 0 10px #ff69b4;
+        }
+
+        .candy-pop button, .candy-pop select, .candy-pop input {
+            background: #ff69b4;
+            color: #ffffff;
+            border: 2px solid #00f7ff;
+        }
+
+        .candy-pop .track canvas {
+            border: 2px solid #00f7ff;
+        }
+
+        .candy-pop #toast, .candy-pop .tooltip::after {
+            background: rgba(255, 255, 255, 0.4);
+            border: 2px solid #ff69b4;
+            color: #1a1a3d;
+        }
+
+        @keyframes bubble {
+            0% { transform: translateY(0) rotate(0deg); }
+            50% { transform: translateY(-3px) rotate(2deg); }
+            100% { transform: translateY(0) rotate(0deg); }
+        }
+
+        @media (max-width: 850px) {
+            #app {
+                padding: 0 10px;
+            }
+            .track canvas {
+                width: 100%;
+            }
+            #toolbar {
+                flex-direction: column;
+                align-items: center;
+            }
+        }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
+</head>
+<body class="retro-arcade">
+    <div id="app">
+        <select id="themeSelector" aria-label="Select theme">
+            <option value="retro-arcade">Retro Arcade</option>
+            <option value="tropical-sunset">Tropical Sunset</option>
+            <option value="cosmic-disco">Cosmic Disco</option>
+            <option value="candy-pop">Candy Pop</option>
+        </select>
+        <h1>AI Music Production Suite</h1>
+        <div id="toolbar">
+            <button class="tooltip" data-tooltip="Join or share session" disabled>Session: <span id="sessionId"></span></button>
+            <button class="tooltip" data-tooltip="Record vocals (mic required)" id="recordBtn">Record</button>
+            <button class="tooltip" data-tooltip="Stop recording" id="stopBtn" disabled>Stop</button>
+            <button class="tooltip" data-tooltip="Play all tracks" id="playBtn" disabled>Play</button>
+            <button class="tooltip" data-tooltip="Pause playback" id="pauseBtn" disabled>Pause</button>
+            <select class="tooltip" data-tooltip="Select genre for AI beat" id="genreSelect">
+                <option value="pop">Pop</option>
+                <option value="hiphop">Hip-Hop</option>
+                <option value="electronic">Electronic</option>
+            </select>
+            <button class="tooltip" data-tooltip="Generate AI beat" id="generateBtn">Generate Beat</button>
+            <label for="beatUpload" class="tooltip" data-tooltip="Upload a beat (WAV/MP3)">
+                <button>Upload Beat</button>
+                <input type="file" id="beatUpload" accept="audio/*">
+            </label>
+            <button class="tooltip" data-tooltip="Export mix as WAV" id="exportBtn" disabled>Export</button>
+        </div>
+        <div id="tracks"></div>
+        <canvas id="equalizer" width="800" height="100"></canvas>
+        <div id="toast"></div>
+    </div>
+    <script>
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        let mediaRecorder = null;
+        let socket = null;
+        let tracks = [];
+        let isRecording = false;
+        let isPlaying = false;
+        let analyser = audioContext.createAnalyser();
+        analyser.fftSize = 256;
+        let animationFrameId = null;
+
+        const sessionId = Math.random().toString(36).substring(2, 10);
+        document.getElementById('sessionId').textContent = sessionId;
+
+        // Theme Switching
+        document.getElementById('themeSelector').addEventListener('change', (e) => {
+            document.body.className = e.target.value;
+            showToast(`Theme switched to ${e.target.options[e.target.selectedIndex].text}`);
+        });
+
+        // Accessibility: Keyboard Navigation
+        document.querySelectorAll('button, select, input').forEach((el, index) => {
+            el.setAttribute('tabindex', index + 1);
+            el.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    el.click();
+                }
+            });
+        });
+
+        // Toast Notification
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        // Draw Waveform
+        function drawWaveform(canvas, buffer, playbackTime = 0) {
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            if (!buffer) return;
+
+            const data = buffer.getChannelData(0);
+            const step = Math.ceil(data.length / canvas.width);
+            const amp = canvas.height / 2;
+            const currentSample = Math.floor(playbackTime * buffer.sampleRate);
+            const highlightWidth = Math.floor(canvas.width * (currentSample / data.length)) || 0;
+
+            ctx.beginPath();
+            ctx.strokeStyle = document.body.classList.contains('tropical-sunset') || document.body.classList.contains('candy-pop') ? '#1a1a3d' : '#ffffff';
+            ctx.lineWidth = 2;
+
+            for (let i = 0; i < canvas.width; i++) {
+                let min = 1.0, max = -1.0;
+                for (let j = 0; j < step; j++) {
+                    const datum = data[(i * step) + j] || 0;
+                    if (datum < min) min = datum;
+                    if (datum > max) max = datum;
+                }
+                const yMin = (1 + min) * amp;
+                const yMax = (1 + max) * amp;
+                ctx.moveTo(i, yMin);
+                ctx.lineTo(i, yMax);
+                if (i < highlightWidth) {
+                    ctx.stroke();
+                    ctx.beginPath();
+                    ctx.strokeStyle = document.body.classList.contains('tropical-sunset') ? '#ff6f61' : '#ff00ff';
+                    ctx.moveTo(i, yMin);
+                    ctx.lineTo(i, yMax);
+                }
+            }
+            ctx.stroke();
+        }
+
+        // Draw Equalizer
+        function drawEqualizer() {
+            const canvas = document.getElementById('equalizer');
+            const ctx = canvas.getContext('2d');
+            const data = new Uint8Array(analyser.frequencyBinCount);
+            analyser.getByteFrequencyData(data);
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const barWidth = canvas.width / data.length;
+            for (let i = 0; i < data.length; i++) {
+                const height = (data[i] / 255) * canvas.height;
+                ctx.fillStyle = document.body.classList.contains('tropical-sunset') ? '#ff6f61' : '#00ff9f';
+                ctx.fillRect(i * barWidth, canvas.height - height, barWidth - 1, height);
+            }
+            animationFrameId = requestAnimationFrame(drawEqualizer);
+        }
+
+        // Record Audio
+        document.getElementById('recordBtn').addEventListener('click', async () => {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                const audioChunks = [];
+
+                mediaRecorder.ondataavailable = (e) => audioChunks.push(e.data);
+                mediaRecorder.onstop = async () => {
+                    const blob = new Blob(audioChunks, { type: 'audio/webm' });
+                    const arrayBuffer = await blob.arrayBuffer();
+                    const buffer = await audioContext.decodeAudioData(arrayBuffer);
+                    const track = {
+                        id: Date.now(),
+                        type: 'vocal',
+                        buffer,
+                        volume: 1.0,
+                        effects: []
+                    };
+                    tracks.push(track);
+                    socket.emit('updateTrack', track);
+                    addTrackToUI(track);
+                    showToast('Recording stopped');
+                    isRecording = false;
+                    updateButtonStates();
+                };
+
+                mediaRecorder.start();
+                isRecording = true;
+                updateButtonStates();
+                showToast('Recording...');
+            } catch (err) {
+                showToast('Error accessing microphone');
+                console.error(err);
+            }
+        });
+
+        // Stop Recording
+        document.getElementById('stopBtn').addEventListener('click', () => {
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
+            }
+        });
+
+        // Upload Beat
+        document.getElementById('beatUpload').addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                const buffer = await audioContext.decodeAudioData(arrayBuffer);
+                const track = {
+                    id: Date.now(),
+                    type: 'uploaded',
+                    buffer,
+                    volume: 1.0,
+                    effects: []
+                };
+                tracks.push(track);
+                socket.emit('updateTrack', track);
+                addTrackToUI(track);
+                showToast('Beat uploaded');
+                updateButtonStates();
+            } catch (err) {
+                showToast('Error uploading beat');
+                console.error(err);
+            }
+        });
+
+        // Play Tracks
+        document.getElementById('playBtn').addEventListener('click', () => {
+            if (isPlaying || !tracks.length) return;
+
+            const gainNodes = tracks.map((track) => {
+                const source = audioContext.createBufferSource();
+                source.buffer = track.buffer;
+                const gain = audioContext.createGain();
+                gain.gain.value = track.volume;
+                source.connect(gain);
+                gain.connect(analyser);
+                analyser.connect(audioContext.destination);
+                source.start();
+                source.onended = () => {
+                    isPlaying = false;
+                    updateButtonStates();
+                    cancelAnimationFrame(animationFrameId);
+                    tracks.forEach((t, i) => drawWaveform(document.querySelectorAll('.track canvas')[i], t.buffer));
+                    showToast('Playback stopped');
+                };
+                return { source, gain };
+            });
+
+            isPlaying = true;
+            updateButtonStates();
+            drawEqualizer();
+            showToast('Playing...');
+        });
+
+        // Pause Tracks
+        document.getElementById('pauseBtn').addEventListener('click', () => {
+            if (isPlaying) {
+                tracks.forEach((_, i) => {
+                    const source = audioContext.createBufferSource();
+                    source.buffer = tracks[i].buffer;
+                    source.stop();
+                });
+                isPlaying = false;
+                updateButtonStates();
+                cancelAnimationFrame(animationFrameId);
+                showToast('Paused');
+            }
+        });
+
+        // Generate AI Beat
+        document.getElementById('generateBtn').addEventListener('click', () => {
+            const genre = document.getElementById('genreSelect').value;
+            const sampleRate = audioContext.sampleRate;
+            const length = sampleRate * 10;
+            const buffer = audioContext.createBuffer(1, length, sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < length; i++) {
+                data[i] = Math.sin(2 * Math.PI * 440 * i / sampleRate) * 0.5 * (Math.random() > 0.5 ? 1 : -1);
+            }
+            const track = {
+                id: Date.now(),
+                type: 'beat',
+                buffer,
+                volume: 0.5,
+                effects: []
+            };
+            tracks.push(track);
+            socket.emit('updateTrack', track);
+            addTrackToUI(track);
+            showToast(`AI ${genre} beat generated`);
+            updateButtonStates();
+        });
+
+        // Add Track to UI
+        function addTrackToUI(track) {
+            const trackDiv = document.createElement('div');
+            trackDiv.className = 'track';
+            trackDiv.innerHTML = `
+                <span>${track.type} Track</span>
+                <input type="range" min="0" max="1" step="0.1" value="${track.volume}" class="volume" aria-label="Adjust track volume" data-tooltip="Adjust track volume">
+                <select class="effect" aria-label="Apply effect to track" data-tooltip="Apply effect to track (e.g., Auto-Tune enhances pitch)">
+                    <option value="">Select Effect</option>
+                    <option value="autotune">Auto-Tune</option>
+                    <option value="chorus">Chorus</option>
+                    <option value="distortion">Distortion</option>
+                </select>
+                <canvas width="800" height="100"></canvas>
+            `;
+            document.getElementById('tracks').appendChild(trackDiv);
+            drawWaveform(trackDiv.querySelector('canvas'), track.buffer);
+
+            trackDiv.querySelector('.volume').addEventListener('input', (e) => {
+                track.volume = parseFloat(e.target.value);
+                socket.emit('updateTrack', track);
+            });
+
+            trackDiv.querySelector('.effect').addEventListener('change', (e) => {
+                applyEffect(track, e.target.value);
+            });
+        }
+
+        // Apply Effect
+        function applyEffect(track, effect) {
+            if (!effect) return;
+
+            let newBuffer = audioContext.createBuffer(
+                track.buffer.numberOfChannels,
+                track.buffer.length,
+                track.buffer.sampleRate
+            );
+
+            if (effect === 'autotune') {
+                for (let channel = 0; channel < track.buffer.numberOfChannels; channel++) {
+                    const input = track.buffer.getChannelData(channel);
+                    const output = newBuffer.getChannelData(channel);
+                    for (let i = 0; i < input.length; i++) {
+                        output[i] = input[i] * (1 + 0.1 * Math.sin(2 * Math.PI * 10 * i / track.buffer.sampleRate));
+                    }
+                }
+            } else if (effect === 'chorus') {
+                const delaySamples = Math.floor(0.03 * track.buffer.sampleRate);
+                newBuffer = audioContext.createBuffer(
+                    track.buffer.numberOfChannels,
+                    track.buffer.length + delaySamples,
+                    track.buffer.sampleRate
+                );
+                for (let channel = 0; channel < track.buffer.numberOfChannels; channel++) {
+                    const input = track.buffer.getChannelData(channel);
+                    const output = newBuffer.getChannelData(channel);
+                    for (let i = 0; i < input.length; i++) {
+                        output[i] = input[i];
+                        if (i + delaySamples < newBuffer.length) {
+                            output[i + delaySamples] += input[i] * 0.5;
+                        }
+                    }
+                }
+            } else if (effect === 'distortion') {
+                for (let channel = 0; channel < track.buffer.numberOfChannels; channel++) {
+                    const input = track.buffer.getChannelData(channel);
+                    const output = newBuffer.getChannelData(channel);
+                    for (let i = 0; i < input.length; i++) {
+                        output[i] = Math.tanh(input[i] * 5);
+                    }
+                }
+            }
+
+            track.buffer = newBuffer;
+            track.effects.push(effect);
+            socket.emit('updateTrack', track);
+            const trackDivs = document.querySelectorAll('.track');
+            const index = tracks.findIndex(t => t.id === track.id);
+            drawWaveform(trackDivs[index].querySelector('canvas'), track.buffer);
+            showToast(`${effect} applied to track`);
+        }
+
+        // Export Mix
+        document.getElementById('exportBtn').addEventListener('click', () => {
+            if (!tracks.length) return;
+
+            const maxLength = Math.max(...tracks.map(t => t.buffer.length));
+            const numberOfChannels = tracks[0].buffer.numberOfChannels;
+            const sampleRate = tracks[0].buffer.sampleRate;
+            const mixedBuffer = audioContext.createBuffer(numberOfChannels, maxLength, sampleRate);
+
+            for (let channel = 0; channel < numberOfChannels; channel++) {
+                const output = mixedBuffer.getChannelData(channel);
+                tracks.forEach(track => {
+                    const data = track.buffer.getChannelData(channel);
+                    for (let i = 0; i < maxLength; i++) {
+                        output[i] += (i < data.length ? data[i] : 0) * track.volume;
+                    }
+                });
+            }
+
+            const wavBuffer = new ArrayBuffer(44 + maxLength * numberOfChannels * 2);
+            const view = new DataView(wavBuffer);
+            writeWavHeader(view, maxLength, numberOfChannels, sampleRate);
+
+            for (let i = 0; i < maxLength; i++) {
+                for (let channel = 0; channel < numberOfChannels; channel++) {
+                    const sample = mixedBuffer.getChannelData(channel)[i];
+                    const value = Math.max(-1, Math.min(1, sample)) * 32767;
+                    view.setInt16(44 + (i * numberOfChannels + channel) * 2, value, true);
+                }
+            }
+
+            const blob = new Blob([wavBuffer], { type: 'audio/wav' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `ai_music_mix_${sessionId}.wav`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast('Mix exported with session ID');
+        });
+
+        function writeWavHeader(view, length, channels, sampleRate) {
+            view.setUint32(0, 0x46464952, true); // RIFF
+            view.setUint32(4, 36 + length * channels * 2, true);
+            view.setUint32(8, 0x45564157, true); // WAVE
+            view.setUint32(12, 0x20746d66, true); // fmt
+            view.setUint32(16, 16, true);
+            view.setUint16(20, 1, true); // PCM
+            view.setUint16(22, channels, true);
+            view.setUint32(24, sampleRate, true);
+            view.setUint32(28, sampleRate * channels * 2, true);
+            view.setUint16(32, channels * 2, true);
+            view.setUint16(34, 16, true);
+            view.setUint32(36, 0x61746164, true); // data
+            view.setUint32(40, length * channels * 2, true);
+        }
+
+        // Update Button States
+        function updateButtonStates() {
+            document.getElementById('recordBtn').disabled = isRecording || isPlaying;
+            document.getElementById('stopBtn').disabled = !isRecording;
+            document.getElementById('playBtn').disabled = isPlaying || !tracks.length;
+            document.getElementById('pauseBtn').disabled = !isPlaying;
+            document.getElementById('exportBtn').disabled = !tracks.length;
+        }
+
+        // Socket.IO
+        socket = io('http://localhost:3000');
+        socket.on('connect', () => {
+            socket.emit('join', sessionId);
+        });
+        socket.on('updateTrack', (track) => {
+            const index = tracks.findIndex(t => t.id === track.id);
+            if (index >= 0) {
+                tracks[index] = track;
+                const trackDivs = document.querySelectorAll('.track');
+                drawWaveform(trackDivs[index].querySelector('canvas'), track.buffer);
+            } else {
+                tracks.push(track);
+                addTrackToUI(track);
+            }
+            updateButtonStates();
+        });
+
+        // Initialize
+        updateButtonStates();
+    </script>
+</body>
+</html>
